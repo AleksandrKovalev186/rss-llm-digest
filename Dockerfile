@@ -6,8 +6,12 @@ RUN apt-get update && \
 
 WORKDIR /rss-llm-digest
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+RUN pip install --no-cache-dir poetry==1.8.2
+COPY pyproject.toml poetry.lock ./
+
+# Установить зависимости (только production)
+RUN poetry install --only=main --no-root
 
 COPY .. /numer_bot
 

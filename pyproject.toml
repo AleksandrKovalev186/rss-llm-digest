@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "rss-llm-digest"
+version = "0.1.0"
+description = "Project with LangChain and DeepSeek"
+authors = ["Alex <cigurd186@icloud.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.13"
+langchain-core = "1.2.9"
+langchain-classic = "1.0.1"
+feedparser = "6.0.12"
+langchain-deepseek = "*"
+pyyaml = "*"
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^6.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
