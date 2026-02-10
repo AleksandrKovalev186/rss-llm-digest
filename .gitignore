@@ -31,6 +31,7 @@ env/
 env.bak/
 venv.bak/
 .python-version
+poetry.toml
 
 # Unit test / coverage reports
 htmlcov/
@@ -79,14 +80,12 @@ log/
 *.sqlite3
 
 # Environment variables
-.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
 # macOS specific
-.DS_Store
 .AppleDouble
 .LSOverride
 Icon
@@ -113,4 +112,5 @@ tmp/
 temp/
 .tmp
 *.tmp
+
 

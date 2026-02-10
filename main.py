@@ -1,6 +1,6 @@
-import feedparser
 from pathlib import Path
 
+import feedparser
 import yaml
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -8,6 +8,7 @@ from langchain_core.tools import tool
 from langchain_deepseek import ChatDeepSeek
 
 urls = "https://aws.amazon.com/blogs/training-and-certification/feed"
+
 
 @tool
 def rss_feed(url: str) -> str:
@@ -42,7 +43,6 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="agent_scratchpad"),
 ])
 
-
 llm = ChatDeepSeek(model="deepseek-chat")
 
 tools = [rss_feed]
@@ -62,7 +62,8 @@ agent_executor = AgentExecutor(
 if __name__ == '__main__':
     result = agent_executor.invoke(
         {
-            "input": f"Use the rss_feed tool to fetch items from {urls}, then summarize each item according to the system instructions."
+            "input": f"Use the rss_feed tool to fetch items from {urls}, "
+                     f"then summarize each item according to the system instructions."
         }
     )
 
