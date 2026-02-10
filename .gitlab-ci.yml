@@ -6,8 +6,8 @@ stages:
 flake8:
   stage: lint
   script:
-    - python --version
-    - pip install flake8
-    - flake8 src/
+    - pip install poetry
+    - poetry install --no-root
+    - poetry run flake8 .
   only:
     - merge_requests
