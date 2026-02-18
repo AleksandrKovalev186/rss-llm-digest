@@ -12,6 +12,7 @@ langchain-classic = "1.0.1"
 feedparser = "6.0.12"
 aiogram = "3.24.0"
 langchain-deepseek = "*"
+loguru = "0.7.3"
 pyyaml = "*"
 
 [tool.poetry.group.dev.dependencies]

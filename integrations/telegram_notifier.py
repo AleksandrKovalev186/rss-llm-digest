@@ -5,6 +5,7 @@ from aiogram.enums import ParseMode
 from aiogram.types import LinkPreviewOptions
 from langchain_core.messages import HumanMessage
 from langchain_deepseek import ChatDeepSeek
+from loguru import logger
 
 from integrations.message_state import State
 from memory.vector_store import retrieve_rules
@@ -16,7 +17,7 @@ Output formatted text only, no explanations.\n\n{summaries}"""
 
 
 def split_messages(text: str, max_length: int = 4096) -> list[str]:
-    """Разбивает текст на части по логическим границам между новостями."""
+    """Splits the text into segments along logical boundaries between news items."""
     if len(text) <= max_length:
         return [text]
 
@@ -71,6 +72,6 @@ async def telegram_node(state: State) -> State:
                     await asyncio.sleep(0.5)
 
         except Exception as e:
-            print(f" {e}")
+            logger.error(e)
 
     return state
