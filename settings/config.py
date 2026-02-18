@@ -28,5 +28,20 @@ class Settings(BaseSettings):
         description="chat id for Telegram"
     )
 
+    email_to: Optional[str] = Field(
+        default=None,
+        description="Email address to send email"
+    )
+
+    email_from: Optional[str] = Field(
+        default=None,
+        description="Email address from"
+    )
+
+    email_password: Optional[str] = Field(
+        default=None,
+        description="token to send email"
+    )
+
 
 settings = Settings()
