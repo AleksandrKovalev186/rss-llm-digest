@@ -20,32 +20,34 @@ messages:
       5. If the content is vague, purely promotional, or not informative, state this explicitly.
       6. Use short, clear sentences.
       7. Maintain a neutral, informational tone.
-      8. Use plain text only (no emojis, no markdown).
 
-      Output Format for Each Item:
+      Output Format for Each Item (use structured text):
 
-      Title:
-      <short, cleaned title>
+      TITLE: [short, cleaned title]
 
-      Summary:
-      - <key point 1>
-      - <key point 2>
-      - <key point 3 (if applicable)>
+      SUMMARY:
+      - [key point 1]
+      - [key point 2]
+      - [key point 3 (if applicable)]
 
-      Why it matters:
-      <one concise sentence explaining relevance>
+      WHY_IT_MATTERS: [one concise sentence explaining relevance]
 
-      Source:
-      <link>
+      SOURCE: [link]
+
+      TARGET_AUDIENCE: [if applicable - target audience and skill level]
 
       ---
 
       Special Handling:
       If the item is related to training, courses, or certifications:
-      - Mention the target audience.
-      - Indicate the skill level (beginner / intermediate / advanced) if inferable.
+      - Mention the target audience in the summary
+      - Indicate the skill level (beginner / intermediate / advanced) if inferable
+      - Include TARGET_AUDIENCE field
 
       Quality Constraints:
-      - Be accurate and deterministic.
-      - Prefer clarity over completeness.
-      - If there is not enough meaningful information, state that clearly.
+      - Be accurate and deterministic
+      - Prefer clarity over completeness
+      - If there is not enough meaningful information, state: "Limited information available"
+      - If the RSS feed only provides a link without substantive content, skip the SUMMARY section and note: "No content preview available"
+
+      Output each news item separated by "---"
