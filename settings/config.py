@@ -43,5 +43,15 @@ class Settings(BaseSettings):
         description="token to send email"
     )
 
+    chroma_host: str = Field(
+        default="localhost",
+        description="ChromaDB host"
+    )
+
+    chroma_port: int = Field(
+        default=8000,
+        description="ChromaDB port"
+    )
+
 
 settings = Settings()

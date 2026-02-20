@@ -30,7 +30,7 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 
 **Graph-Based Orchestration (LangGraph)** — Nodes share typed state via a Pydantic `State` model. Conditional edges handle runtime routing between delivery channels. Adding a new channel means adding one node and one branch.
 
-**Retrieval-Augmented Generation (RAG)** — Before formatting for Telegram, the pipeline fetches Telegram's official HTML spec, chunks and embeds it into a Chroma vector store, then retrieves the relevant formatting rules via semantic search and injects them into the LLM prompt.
+**Retrieval-Augmented Generation (RAG)** — Before formatting for Telegram, the pipeline fetches Telegram's official HTML spec, chunks and embeds it into a Chroma vector store running as a separate service, then retrieves the relevant formatting rules via semantic search and injects them into the LLM prompt. The collection is persisted across runs — documents are loaded only on first startup.
 
 **Prompt Engineering** — The LLM behavior is defined in a separate `system_prompt.yaml` with a strict output schema (`TITLE`, `SUMMARY`, `WHY_IT_MATTERS`, `SOURCE`, `TARGET_AUDIENCE`). Decoupled from code for independent versioning.
 
@@ -46,7 +46,7 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 | Agent Framework | LangChain — tool calling agent + AgentExecutor |
 | Workflow Orchestration | LangGraph — StateGraph, conditional edges |
 | Embeddings | HuggingFace `all-MiniLM-L6-v2` |
-| Vector Store | Chroma |
+| Vector Store | Chroma (separate container, persistent) |
 | RSS Parsing | feedparser |
 | Telegram Bot | aiogram 3.x (async) |
 | Config | Pydantic BaseSettings |
