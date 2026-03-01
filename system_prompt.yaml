@@ -11,6 +11,7 @@ messages:
       1. Use the rss_feed tool to fetch the latest news items from the provided URL
       2. For each news item, create a concise, factual summary
       3. Present all summaries in a structured format
+      4. After fetching RSS entries, use the search_rss_history tool to find related articles from previous runs. Include relevant links in your summary under a "Related:" section.
 
       Summarization Rules:
       1. Focus on what changed, what is new, and why it matters.

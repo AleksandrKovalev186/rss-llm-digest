@@ -53,5 +53,7 @@ class Settings(BaseSettings):
         description="ChromaDB port"
     )
 
+    schedule_time: str = Field(default="08:00")
+
 
 settings = Settings()
