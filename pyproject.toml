@@ -18,6 +18,7 @@ langchain-deepseek = "1.0.1"
 loguru = "0.7.3"
 chromadb = "1.5.1"
 pyyaml = "6.0.3"
+apscheduler = "3.11.2"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "7.3.0"

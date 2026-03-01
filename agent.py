@@ -5,6 +5,8 @@ from typing import List, Literal
 
 import feedparser
 import yaml
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import tool
@@ -15,7 +17,7 @@ from langgraph.graph import StateGraph
 from integrations.email_notifier import email_node
 from integrations.message_state import State
 from integrations.telegram_notifier import telegram_node
-from memory.vector_store import init_vectorstore
+from memory.vector_store import init_vectorstore, store_news, retrieve_news
 from settings.config import settings
 
 
@@ -42,6 +44,7 @@ def rss_feed(feed_urls: List[str], count: int = 2) -> str:
           str — formatted text with titles and links.
       """
     result = []
+    parsed_entries = []
     for url in feed_urls:
         feed = feedparser.parse(url)
 
@@ -56,7 +59,31 @@ def rss_feed(feed_urls: List[str], count: int = 2) -> str:
 
             result.append(f"{i}. Title: {title}\n   Link: {link}\n   Content: {content}\n")
 
+            parsed_entries.append({
+                "title": title,
+                "link": link,
+                "content": content,
+                "source_url": url
+            })
+
+    store_news(parsed_entries)
     return "\n".join(result)
+
+
+@tool
+def search_rss_history(query: str, k: int = 3) -> str:
+    """
+    Search previously fetched RSS articles by semantic similarity.
+    Use this to find related articles and their links from past runs.
+
+    Parameters:
+        query — topic or keywords to search for
+        k — number of results to return
+
+    Returns:
+        str — relevant articles with titles and links
+    """
+    return retrieve_news(query, k)
 
 
 def integration_router(state: State) -> Literal['telegram_node', 'email_node']:
@@ -81,7 +108,7 @@ prompt = ChatPromptTemplate.from_messages([
 
 llm = ChatDeepSeek(model="deepseek-chat", max_tokens=2000)
 
-tools = [rss_feed]
+tools = [rss_feed, search_rss_history]
 
 agent = create_tool_calling_agent(
     llm=llm,
@@ -128,5 +155,19 @@ async def run_agent():
     await graph.ainvoke({})
 
 
+async def run_pipeline():
+    init_vectorstore()
+
+    hour, minute = settings.digest_time.split(":")
+
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(
+        run_agent,
+        trigger=CronTrigger(hour=int(hour), minute=int(minute)),
+    )
+    scheduler.start()
+    await asyncio.Event().wait()
+
+
 if __name__ == "__main__":
-    asyncio.run(run_agent())
+    asyncio.run(run_pipeline())
