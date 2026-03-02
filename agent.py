@@ -158,7 +158,7 @@ async def run_agent():
 async def run_pipeline():
     init_vectorstore()
 
-    hour, minute = settings.digest_time.split(":")
+    hour, minute = settings.schedule_time.split(":")
 
     scheduler = AsyncIOScheduler()
     scheduler.add_job(

@@ -38,7 +38,9 @@ def split_messages(text: str, max_length: int = 4096) -> list[str]:
     if current_chunk.strip():
         chunks.append(current_chunk.strip())
 
-    return chunks if chunks else [text[:max_length]]
+    if not chunks:
+        return [text[i:i + max_length] for i in range(0, len(text), max_length)]
+    return chunks
 
 
 async def telegram_node(state: State) -> State:

@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 
 import chromadb
 from langchain_chroma import Chroma
@@ -67,7 +67,7 @@ def store_news(entries: list[dict[str, str]]) -> None:
             "title": e["title"],
             "link": e["link"],
             "source_url": e["source_url"],
-            "fetched_at": datetime.now(UTC).isoformat(),
+            "fetched_at": datetime.now(UTC).timestamp(),
         }
         for e in entries
     ]
@@ -87,13 +87,18 @@ def retrieve_rules(query: str, k: int = 4) -> str:
 
 
 def retrieve_news(query: str, k: int = 3) -> str:
+    threshold = (datetime.now() - timedelta(minutes=20)).timestamp()
     if _rss_store is None:
         raise RuntimeError(
             "Rss store is not initialized. "
             "Call init_vectorstore() before using retrieve_rules()."
         )
 
-    docs = _rss_store.similarity_search(query, k=k)
+    docs = _rss_store.similarity_search(
+        query,
+        k=k,
+        filter={"fetched_at": {"$lt": threshold}}  # type: ignore[arg-type]
+    )
     return "\n\n---\n\n".join(
         f"Title: {doc.metadata['title']}\nLink: {doc.metadata['link']}\n{doc.page_content}"
         for doc in docs
