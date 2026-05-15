@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-    deepseek_api_key: Optional[str] = Field()
+    hf_model_id: str = Field(default="Qwen/Qwen3.5-0.8B")
 
     channel_to_send: Literal["TELEGRAM", "EMAIL"] = Field(
         description="Output channel: TELEGRAM or EMAIL"
