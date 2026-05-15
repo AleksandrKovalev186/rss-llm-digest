@@ -12,7 +12,7 @@ The pipeline is a **multi-node stateful graph** (LangGraph), not a single prompt
 START
   │
   ▼
-summarizer_node   ← ReAct Agent (LangChain) + rss_feed tool + search_rss_history tool + DeepSeek LLM
+summarizer_node   ← ReAct Agent (LangChain) + rss_feed tool + search_rss_history tool + HuggingFace LLM (Qwen3.5)
   │
   ▼
 integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
@@ -26,13 +26,11 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 
 ## AI Patterns
 
-**ReAct Agent with Tool Calling** — The summarizer node runs a LangChain agent equipped with two custom tools: `rss_feed` (fetches and stores RSS entries) and `search_rss_history` (searches past entries by semantic similarity). The agent autonomously decides what to read and what context to retrieve before summarizing.
+**ReAct Agent with Tool Calling** — The summarizer node runs a LangChain agent equipped with two custom tools: `rss_feed` (fetches and stores RSS entries) and `search_rss_history` (searches past entries by semantic similarity). The agent autonomously decides what to read and what context to retrieve before summarizing. The HuggingFace pipeline is sync-only, so it runs inside `loop.run_in_executor`.
 
 **Graph-Based Orchestration (LangGraph)** — Nodes share typed state via a Pydantic `State` model. Conditional edges handle runtime routing between delivery channels. Adding a new channel means adding one node and one branch.
 
-**Retrieval-Augmented Generation (RAG)** — Two separate Chroma collections running as a persistent external service:
-- `telegram_rules` — Telegram Bot API HTML formatting spec, loaded once on first startup
-- `news_collection` — all fetched RSS entries, accumulated across runs; used by the agent to find related articles and enrich summaries with historical links
+**Retrieval-Augmented Generation (RAG)** — Single Chroma collection `news_collection` accumulates all fetched RSS entries across runs. The agent uses `search_rss_history` to find related past articles and enrich summaries with historical links.
 
 **Prompt Engineering** — The LLM behavior is defined in a separate `system_prompt.yaml` with a strict output schema (`TITLE`, `SUMMARY`, `WHY_IT_MATTERS`, `SOURCE`, `TARGET_AUDIENCE`). Decoupled from code for independent versioning.
 
@@ -46,8 +44,8 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 
 | Layer | Technology |
 |---|---|
-| LLM | DeepSeek (`deepseek-chat`) |
-| Agent Framework | LangChain — tool calling agent + AgentExecutor |
+| LLM | HuggingFace Transformers — `Qwen/Qwen3.5-0.8B` (local, configurable via `HF_MODEL_ID`) |
+| Agent Framework | LangChain Classic — tool calling agent + AgentExecutor |
 | Workflow Orchestration | LangGraph — StateGraph, conditional edges |
 | Embeddings | HuggingFace `all-MiniLM-L6-v2` |
 | Vector Store | Chroma (separate container, two persistent collections) |
@@ -68,9 +66,6 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 Create a `.env` file in the project root:
 
 ```env
-DEEPSEEK_API_KEY=...
-LANGSMITH_API_KEY=...      # optional, for LangSmith tracing
-
 CHANNEL_TO_SEND=TELEGRAM   # TELEGRAM | EMAIL
 SCHEDULE_TIME=08:00        # daily digest time (HH:MM, system timezone)
 
@@ -82,6 +77,10 @@ TELEGRAM_CHAT_ID=...
 EMAIL_FROM=...
 EMAIL_TO=...
 EMAIL_PASSWORD=...         # Gmail app password
+
+# Optional
+LANGSMITH_API_KEY=...      # LangSmith tracing
+HF_MODEL_ID=Qwen/Qwen3.5-0.8B  # override default model (~1.6 GB)
 ```
 
 ### 2. Docker Compose (recommended)

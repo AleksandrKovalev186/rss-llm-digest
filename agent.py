@@ -10,7 +10,6 @@ from apscheduler.triggers.cron import CronTrigger
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import tool
-from langchain_deepseek import ChatDeepSeek
 from langgraph.constants import START, END
 from langgraph.graph import StateGraph
 
@@ -19,6 +18,7 @@ from integrations.message_state import State
 from integrations.telegram_notifier import telegram_node
 from memory.vector_store import init_vectorstore, store_news, retrieve_news
 from settings.config import settings
+from settings.llm import get_chat_llm
 
 
 def read_urls(filename: str) -> List[str]:
@@ -106,7 +106,7 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="agent_scratchpad"),
 ])
 
-llm = ChatDeepSeek(model="deepseek-chat", max_tokens=2000)
+llm = get_chat_llm()
 
 tools = [rss_feed, search_rss_history]
 
@@ -124,10 +124,14 @@ async def summarizer_node(state: State) -> State:
         verbose=True,
     )
 
-    result = await agent_executor.ainvoke({
-        "input": f"Use the rss_feed tool to fetch items from {urls}, "
-                 f"then summarize each item according to the system instructions."
-    })
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: agent_executor.invoke({
+            "input": f"Use the rss_feed tool to fetch items from {urls}, "
+                     f"then summarize each item according to the system instructions."
+        })
+    )
 
     state.summaries = result["output"]
     return state

@@ -14,6 +14,9 @@ services:
       CHROMA_PORT: 8000
     depends_on:
       - chroma
+    volumes:
+      - hf_cache:/root/.cache/huggingface
 
 volumes:
   chroma_data:
+  hf_cache:
