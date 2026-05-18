@@ -52,7 +52,7 @@ FIXTURES = [
         ),
     },
     {
-        "description": "Article with no content — link only, expects 'No content preview available'",  # noqa: E501
+        "description": "Article with no content — link only, expects 'No content preview available'",
         "articles_text": (
             "1. Title: OpenAI Releases GPT-5 Technical Report\n"
             "   Link: https://openai.com/research/gpt-5-technical-report\n"

@@ -22,11 +22,10 @@ from dotenv import load_dotenv
 from langsmith.evaluation import evaluate
 
 from evals.dataset import DATASET_NAME
+
+load_dotenv()
 from evals.evaluators import format_compliance, has_source_urls, no_large_verbatim_copy
 from evals.target import summarize
-
-# Must be called before any LangSmith Client() instantiation (happens inside evaluate()).
-load_dotenv()
 
 
 def main() -> None:
