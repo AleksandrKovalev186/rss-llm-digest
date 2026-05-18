@@ -25,6 +25,10 @@ apscheduler = "3.11.2"
 [tool.poetry.group.dev.dependencies]
 flake8 = "7.3.0"
 
+[tool.poetry.group.evals.dependencies]
+langsmith = "0.7.9"
+python-dotenv = "1.2.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

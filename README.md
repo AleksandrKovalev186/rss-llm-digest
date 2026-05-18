@@ -34,6 +34,8 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 
 **Prompt Engineering** — The LLM behavior is defined in a separate `system_prompt.yaml` with a strict output schema (`TITLE`, `SUMMARY`, `WHY_IT_MATTERS`, `SOURCE`, `TARGET_AUDIENCE`). Decoupled from code for independent versioning.
 
+**Offline Evaluation (LangSmith Evals)** — The summarizer LLM is evaluated independently from the full pipeline using a static dataset of pre-fetched articles stored in LangSmith. Three rule-based evaluators measure format compliance, URL presence in `SOURCE:` fields, and absence of verbatim copy-paste from input. Each `poetry run python -m evals.run_eval` creates a new named experiment in LangSmith — experiments accumulate over time so prompt changes can be compared across runs.
+
 **Scheduled Execution** — The pipeline runs on a daily cron schedule via APScheduler (`AsyncIOScheduler` + `CronTrigger`). Send time is configured via `SCHEDULE_TIME` env var. The process runs continuously and waits for the next trigger.
 
 **Fully Async Pipeline** — RSS fetching, LLM calls, and message delivery all run with `asyncio` and LangChain's async APIs.
@@ -53,7 +55,7 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 | Telegram Bot | aiogram 3.x (async) |
 | Config | Pydantic BaseSettings |
 | Logging | loguru |
-| Tracing | LangSmith |
+| Tracing & Evals | LangSmith |
 | Scheduling | APScheduler (`AsyncIOScheduler` + `CronTrigger`) |
 | Containerization | Docker + Docker Compose + Poetry |
 
@@ -101,3 +103,20 @@ docker-compose up chroma
 poetry install
 poetry run python agent.py
 ```
+
+### 4. Run evaluations
+
+Requires `LANGSMITH_API_KEY` in `.env`.
+
+```bash
+# Install eval dependencies
+poetry install --with evals
+
+# Create the dataset in LangSmith (run once)
+poetry run python -m evals.dataset
+
+# Run eval — results appear in terminal and in LangSmith UI
+poetry run python -m evals.run_eval
+```
+
+The eval runs the summarizer LLM against 4 static article examples and scores each output with three metrics: `format_compliance`, `has_source_urls`, `no_large_verbatim_copy`. Results are stored as a named experiment in LangSmith so you can compare runs after changing `system_prompt.yaml` or the model.
