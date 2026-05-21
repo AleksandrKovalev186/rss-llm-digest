@@ -22,8 +22,16 @@ from dotenv import load_dotenv
 from langsmith.evaluation import evaluate
 
 from evals.dataset import DATASET_NAME
-from evals.evaluators import format_compliance, has_source_urls, no_large_verbatim_copy
+from evals.evaluators import (
+    correct_field_names,
+    format_compliance,
+    has_source_urls,
+    no_large_verbatim_copy,
+    no_repeated_summary,
+)
 from evals.target import summarize
+from settings.config import settings
+from settings.llm import get_chat_llm
 
 # Must be called before any LangSmith Client() instantiation (happens inside evaluate()).
 load_dotenv()
@@ -39,14 +47,23 @@ def main() -> None:
             format_compliance,
             has_source_urls,
             no_large_verbatim_copy,
+            correct_field_names,
+            no_repeated_summary,
         ],
 
-        experiment_prefix="summarizer-v1",
+        experiment_prefix="summarizer-v2",
 
         max_concurrency=1,
     )
 
+    llm = get_chat_llm()
+    model = llm.llm.pipeline.model
+    num_params = model.num_parameters() / 1e9
+
     print("\n=== Eval complete ===")
+    print(f"Model    : {settings.hf_model_id}")
+    print(f"Params   : {num_params:.2f}B")
+    all_scores: dict = {}
     for r in results:
         example = r["example"]
         eval_results = r["evaluation_results"]
@@ -61,9 +78,15 @@ def main() -> None:
         )
         scores = {er.key: er.score for er in result_list}
 
-        print(f"\nExample : {preview}...")
+        print(f"\nExample: {preview}...")
         for key, score in scores.items():
             print(f"  {key}: {score}")
+            all_scores.setdefault(key, []).append(score)
+
+    print("\n--- Mean scores ---")
+    for key, values in all_scores.items():
+        mean = sum(values) / len(values)
+        print(f"  {key}: {mean:.2f}")
 
 
 if __name__ == "__main__":

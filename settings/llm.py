@@ -22,6 +22,7 @@ def get_chat_llm() -> ChatHuggingFace:
     local_path = snapshot_download(
         repo_id=settings.hf_model_id,
         ignore_patterns=["*.msgpack", "*.h5", "flax_model*", "tf_model*"],
+        token=settings.hf_token,
     )
 
     logger.info("Step 2/3 — loading tokenizer and weights into memory...")

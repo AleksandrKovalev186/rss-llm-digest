@@ -26,9 +26,6 @@ def _load_system_prompt() -> str:
     return messages_data["system"]
 
 
-# Target signature required by langsmith.evaluate():
-#   inputs: dict  — the "inputs" field from the LangSmith Example
-#   returns: dict — arbitrary dict; evaluators receive it as "outputs"
 def summarize(inputs: dict) -> dict:
     """Call the LLM with the system prompt and the pre-fetched article text."""
     llm = get_chat_llm()
@@ -36,8 +33,6 @@ def summarize(inputs: dict) -> dict:
 
     messages = [
         SystemMessage(content=system_prompt),
-        # We pass the article text as a human message, exactly as the agent would
-        # after the rss_feed tool returns its result.
         HumanMessage(content=inputs["articles_text"]),
     ]
 

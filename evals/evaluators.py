@@ -99,3 +99,52 @@ def no_large_verbatim_copy(inputs: dict, outputs: dict, reference_outputs: dict)
 
     score = 0.0 if violations > 0 else 1.0
     return {"key": "no_large_verbatim_copy", "score": score}
+
+
+# ---------------------------------------------------------------------------
+# Evaluator 4: correct_field_names
+# ---------------------------------------------------------------------------
+# The system prompt requires plain-text field names: TITLE: / SUMMARY: / SOURCE:
+# Real outputs showed the model uses markdown bold instead: **Source:** / **Summary:**
+
+MARKDOWN_FIELD_PATTERN = re.compile(r'\*\*\w[^*]*:\*\*|\*\*\w[^*]*:\s')
+
+
+def correct_field_names(inputs: dict, outputs: dict, reference_outputs: dict) -> dict:
+    """Check that field names are plain text (TITLE:) not markdown bold (**Title:**)."""
+    summary = outputs.get("summary", "")
+    violations = MARKDOWN_FIELD_PATTERN.findall(summary)
+    score = 0.0 if violations else 1.0
+    return {"key": "correct_field_names", "score": score}
+
+
+# ---------------------------------------------------------------------------
+# Evaluator 5: no_repeated_summary
+# ---------------------------------------------------------------------------
+# Real outputs showed the model copies the same sentences across different article
+# summaries — a sign of hallucination / content mixing between articles.
+# We split the output into sentences and check for duplicates longer than 8 words.
+
+MIN_SENTENCE_WORDS = 8
+
+
+def no_repeated_summary(inputs: dict, outputs: dict, reference_outputs: dict) -> dict:
+    """Check that different article sections don't repeat the same sentences."""
+    summary = outputs.get("summary", "")
+
+    sentences = [
+        s.strip().lower()
+        for s in re.split(r'[.\n]', summary)
+        if len(s.strip().split()) >= MIN_SENTENCE_WORDS
+    ]
+
+    if len(sentences) < 2:
+        return {"key": "no_repeated_summary", "score": 1.0}
+
+    seen: set = set()
+    for sentence in sentences:
+        if sentence in seen:
+            return {"key": "no_repeated_summary", "score": 0.0}
+        seen.add(sentence)
+
+    return {"key": "no_repeated_summary", "score": 1.0}
