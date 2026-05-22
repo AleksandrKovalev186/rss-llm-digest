@@ -26,18 +26,25 @@ import re
 
 REQUIRED_SECTIONS = ["TITLE:", "SUMMARY:", "SOURCE:"]
 SEPARATOR = "---"
+SUMMARY_EXEMPTIONS = ["Limited information available", "No content preview available"]
 
 
 def format_compliance(inputs: dict, outputs: dict, reference_outputs: dict) -> dict:
-    """Check that the summary contains all required structural sections."""
+    """Check that the summary contains all required structural sections.
+
+    SUMMARY: is not required when the model correctly uses an exemption phrase
+    ("Limited information available" / "No content preview available") as allowed
+    by the system prompt for vague or empty articles.
+    """
     summary = outputs.get("summary", "")
 
-    missing = [s for s in REQUIRED_SECTIONS if s not in summary]
+    summary_exempt = any(phrase in summary for phrase in SUMMARY_EXEMPTIONS)
+    required = [s for s in REQUIRED_SECTIONS if not (s == "SUMMARY:" and summary_exempt)]
+
+    missing = [s for s in required if s not in summary]
     has_separator = SEPARATOR in summary
 
-    # Score: 1.0 only if nothing is missing AND separator is present.
-    # Partial credit: (found_sections / total_required) — penalises each missing section.
-    sections_score = (len(REQUIRED_SECTIONS) - len(missing)) / len(REQUIRED_SECTIONS)
+    sections_score = (len(required) - len(missing)) / len(required)
     separator_score = 1.0 if has_separator else 0.0
     score = (sections_score + separator_score) / 2
 
@@ -78,7 +85,7 @@ def has_source_urls(inputs: dict, outputs: dict, reference_outputs: dict) -> dic
 # appears verbatim in the input article text?
 # Score 1.0 = no copying found. Score 0.0 = at least one large copy found.
 
-VERBATIM_THRESHOLD = 150  # characters
+VERBATIM_THRESHOLD = 150
 
 
 def no_large_verbatim_copy(inputs: dict, outputs: dict, reference_outputs: dict) -> dict:
@@ -89,13 +96,13 @@ def no_large_verbatim_copy(inputs: dict, outputs: dict, reference_outputs: dict)
     # Slide a window of VERBATIM_THRESHOLD chars over the summary and
     # check if each window also appears in the article text.
     violations = 0
-    step = 50  # check every 50 chars to keep it fast
+    step = 50
 
     for i in range(0, max(0, len(summary) - VERBATIM_THRESHOLD), step):
         chunk = summary[i:i + VERBATIM_THRESHOLD]
         if chunk in article_text:
             violations += 1
-            break  # one violation is enough to fail
+            break
 
     score = 0.0 if violations > 0 else 1.0
     return {"key": "no_large_verbatim_copy", "score": score}

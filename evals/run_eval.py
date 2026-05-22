@@ -29,6 +29,7 @@ from evals.evaluators import (
     no_large_verbatim_copy,
     no_repeated_summary,
 )
+from evals.judge import JUDGE_MODEL_ID, grounding_judge
 from evals.target import summarize
 from settings.config import settings
 from settings.llm import get_chat_llm
@@ -49,6 +50,7 @@ def main() -> None:
             no_large_verbatim_copy,
             correct_field_names,
             no_repeated_summary,
+            grounding_judge,
         ],
 
         experiment_prefix="summarizer-v2",
@@ -63,13 +65,14 @@ def main() -> None:
     print("\n=== Eval complete ===")
     print(f"Model    : {settings.hf_model_id}")
     print(f"Params   : {num_params:.2f}B")
+    print(f"Judge    : {JUDGE_MODEL_ID}")
     all_scores: dict = {}
-    for r in results:
+    for i, r in enumerate(results, start=1):
         example = r["example"]
         eval_results = r["evaluation_results"]
 
         inputs = example.inputs if hasattr(example, "inputs") else example.get("inputs", {})
-        preview = inputs.get("articles_text", "")[:60].replace("\n", " ")
+        title = inputs.get("articles_text", "").split("\n")[0].replace("1. Title: ", "").strip()
 
         result_list = (
             eval_results.results
@@ -78,7 +81,7 @@ def main() -> None:
         )
         scores = {er.key: er.score for er in result_list}
 
-        print(f"\nExample: {preview}...")
+        print(f"\nExample {i}: {title}")
         for key, score in scores.items():
             print(f"  {key}: {score}")
             all_scores.setdefault(key, []).append(score)

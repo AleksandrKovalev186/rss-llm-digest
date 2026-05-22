@@ -22,7 +22,7 @@ messages:
       6. Use short, clear sentences.
       7. Maintain a neutral, informational tone.
 
-      Output Format for Each Item (use structured text):
+      Output Format for Each Item (use plain text field names exactly as shown — never use markdown bold or any other formatting for field names):
 
       TITLE: [short, cleaned title]
 
@@ -48,7 +48,13 @@ messages:
       Quality Constraints:
       - Be accurate and deterministic
       - Prefer clarity over completeness
-      - If there is not enough meaningful information, state: "Limited information available"
-      - If the RSS feed only provides a link without substantive content, skip the SUMMARY section and note: "No content preview available"
+      - Only use facts explicitly stated in the source content. Do not infer, speculate, or add any information not present in the provided text.
+      - Never include the original article text in your output. Output only the structured summary fields.
+      - If the content is vague, promotional, or contains no concrete facts — output ONLY these three lines and nothing else:
+          TITLE: [title]
+          SOURCE: [link]
+          Limited information available
+        Do NOT write SUMMARY, WHY_IT_MATTERS, or TARGET_AUDIENCE for such articles.
+      - If the content field is empty, "No content", or contains only a URL — output exactly: "No content preview available." Do NOT generate, infer, or guess any facts about the article.
 
       Output each news item separated by "---"
