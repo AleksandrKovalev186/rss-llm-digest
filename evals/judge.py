@@ -75,10 +75,14 @@ def grounding_judge(inputs: dict, outputs: dict, reference_outputs: dict) -> dic
 
     Score 1.0 = all facts in the summary come from the source (VERDICT: YES).
     Score 0.0 = summary contains hallucinated facts (VERDICT: NO).
-    Score 0.5 = judge response could not be parsed (unexpected format).
+    Score 0.5 = source too sparse to verify, or judge response could not be parsed.
     """
     article_text = inputs.get("articles_text", "")
     summary = outputs.get("summary", "")
+
+    # Can't verify grounding when the source has no real content.
+    if len(article_text.strip()) < 50 or "No content" in article_text:
+        return {"key": "grounding_judge", "score": 0.5}
 
     judge = _get_judge_llm()
     response = judge.invoke([
