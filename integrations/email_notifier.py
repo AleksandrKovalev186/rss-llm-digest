@@ -1,4 +1,4 @@
-from integrations.message_state import State
+from graph.state import State
 
 import smtplib
 from email.mime.text import MIMEText

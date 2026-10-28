@@ -8,12 +8,13 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.14,<3.15"
-langchain-core = "1.4.0"
-langgraph = "1.2.1"
-langchain-classic = "1.0.7"
+langchain = "1.4.7"
+langchain-core = "1.7.0"
+langgraph = "1.2.17"
 langchain-chroma = "1.1.0"
-langchain-huggingface = "1.2.2"
-langchain-community = "0.4.2"
+langchain-huggingface = "1.2.3"
+huggingface-hub = "1.16.1"
+pydantic-settings = "2.14.1"
 feedparser = "6.0.12"
 aiogram = "3.25.0"
 transformers = "5.7.0"
@@ -29,7 +30,7 @@ apscheduler = "3.11.2"
 flake8 = "7.3.0"
 
 [tool.poetry.group.evals.dependencies]
-langsmith = "0.7.9"
+langsmith = "0.14.12"
 python-dotenv = "1.2.1"
 
 [build-system]

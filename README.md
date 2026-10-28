@@ -79,10 +79,12 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 
 **Key components:**
 
-- **Summarizer node** (`agent.py`) — LangChain ReAct agent. HuggingFace pipeline is sync-only; runs inside `loop.run_in_executor`.
+- **Entry point** (`main.py`) — APScheduler cron job that runs the graph once a day.
+- **Graph** (`graph/builder.py`) — LangGraph `StateGraph` with the summarizer node and the channel router.
+- **Summarizer node** (`graph/builder.py`) — LangChain `create_agent` with the tools from `tools/rss.py`. The HF pipeline is sync-only, so the agent runs via `asyncio.to_thread`.
 - **Vector store** (`memory/vector_store.py`) — ChromaDB over HTTP. `fetched_at` stored as Unix timestamp for Chroma's `$lt` numeric filter. `retrieve_news()` excludes entries from the last 20 minutes to prevent self-retrieval.
-- **LLM helper** (`settings/llm.py`) — `get_chat_llm()`: snapshot download → `AutoModelForCausalLM` with `device_map="auto"` → `HuggingFacePipeline` + `ChatHuggingFace`. `@lru_cache` — model loads once, shared across nodes.
-- **State** (`integrations/message_state.py`) — Pydantic model: `messages` (LangChain message list) + `summaries` (aggregated text string).
+- **LLM helper** (`settings/llm.py`) — `load_chat_llm(model_id, max_new_tokens)`: snapshot download → `AutoModelForCausalLM` with `device_map="auto"` → `HuggingFacePipeline` + `ChatHuggingFace`. `@lru_cache` per model, so the summarizer (`get_chat_llm()`) and the judge each load once.
+- **State** (`graph/state.py`) — Pydantic model: `messages` (LangChain message list) + `summaries` (aggregated text string).
 
 ---
 
@@ -92,7 +94,7 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 |---|---|
 | LLM | HuggingFace Transformers — `Qwen/Qwen3.5-0.8B` (local, configurable via `HF_MODEL_ID`) |
 | LLM Judge | `Qwen/Qwen3.5-2B` (local, no external API) |
-| Agent Framework | LangChain — ReAct agent + AgentExecutor |
+| Agent Framework | LangChain 1.x — `create_agent` |
 | Workflow Orchestration | LangGraph — StateGraph, conditional edges |
 | Embeddings | HuggingFace `all-MiniLM-L6-v2` |
 | Vector Store | ChromaDB (separate container, persistent) |
@@ -130,7 +132,7 @@ docker-compose up chroma
 
 # Run the agent
 poetry install
-poetry run python agent.py
+poetry run python main.py
 ```
 
 ### Full pipeline (Docker)

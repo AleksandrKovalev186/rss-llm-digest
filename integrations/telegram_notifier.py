@@ -9,7 +9,7 @@ from loguru import logger
 
 from settings.llm import get_chat_llm
 
-from integrations.message_state import State
+from graph.state import State
 from settings.config import settings
 
 FORMATTER_PROMPT = """You are a Telegram message formatter.

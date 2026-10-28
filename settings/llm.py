@@ -14,13 +14,13 @@ os.environ.setdefault("USER_AGENT", "rss-llm-digest/0.1.0")
 os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 
 
-@lru_cache(maxsize=1)
-def get_chat_llm() -> ChatHuggingFace:
-    logger.info("Loading LLM: {}", settings.hf_model_id)
+@lru_cache(maxsize=None)
+def load_chat_llm(model_id: str, max_new_tokens: int) -> ChatHuggingFace:
+    logger.info("Loading LLM: {}", model_id)
 
     logger.info("Step 1/3 — downloading model files to cache (skip if already cached)...")
     local_path = snapshot_download(
-        repo_id=settings.hf_model_id,
+        repo_id=model_id,
         ignore_patterns=["*.msgpack", "*.h5", "flax_model*", "tf_model*"],
         token=settings.hf_token,
     )
@@ -32,9 +32,13 @@ def get_chat_llm() -> ChatHuggingFace:
     pipe = pipeline(
         "text-generation", model=model, tokenizer=tokenizer,
         return_full_text=False,
-        max_new_tokens=2000,
+        max_new_tokens=max_new_tokens,
         max_length=None,
     )
 
     logger.info("LLM ready.")
     return ChatHuggingFace(llm=HuggingFacePipeline(pipeline=pipe))
+
+
+def get_chat_llm() -> ChatHuggingFace:
+    return load_chat_llm(settings.hf_model_id, 2000)

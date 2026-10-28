@@ -6,7 +6,7 @@ RUN apt-get update && \
 
 WORKDIR /rss-llm-digest
 
-RUN pip install --no-cache-dir poetry==1.8.2 && \
+RUN pip install --no-cache-dir poetry==2.2.1 && \
     poetry config virtualenvs.create false
 
 COPY pyproject.toml poetry.lock ./
@@ -16,4 +16,4 @@ COPY . .
 
 ENV PYTHONPATH=/rss-llm-digest
 
-CMD ["python", "agent.py"]
+CMD ["python", "main.py"]

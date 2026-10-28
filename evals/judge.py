@@ -7,8 +7,8 @@ i.e., does not contain facts absent from the input.
 
 Why a separate model (not get_chat_llm):
   - The judge must be independent of the model being evaluated.
-  - It is loaded once via its own lru_cache and does not interfere
-    with the main model cache.
+  - It is loaded once via load_chat_llm's cache, keyed by model id,
+    so it does not replace the main model.
 
 Judge prompt design:
   - Binary YES/NO answer to keep parsing simple and reliable.
@@ -17,16 +17,11 @@ Judge prompt design:
   - Explicit instruction to ignore format issues — we only judge facts.
 """
 
-import os
 import re
-from functools import lru_cache
 
-from huggingface_hub import snapshot_download
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
-from settings.config import settings
+from settings.llm import load_chat_llm
 
 JUDGE_MODEL_ID = "Qwen/Qwen3.5-2B"
 
@@ -49,26 +44,6 @@ VERDICT: <YES or NO>"""
 VERDICT_PATTERN = re.compile(r"VERDICT:\s*(YES|NO)", re.IGNORECASE)
 
 
-@lru_cache(maxsize=1)
-def _get_judge_llm() -> ChatHuggingFace:
-    os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
-
-    local_path = snapshot_download(
-        repo_id=JUDGE_MODEL_ID,
-        ignore_patterns=["*.msgpack", "*.h5", "flax_model*", "tf_model*"],
-        token=settings.hf_token,
-    )
-
-    tokenizer = AutoTokenizer.from_pretrained(local_path, clean_up_tokenization_spaces=False)
-    model = AutoModelForCausalLM.from_pretrained(local_path, dtype="auto", device_map="auto")
-    pipe = pipeline(
-        "text-generation", model=model, tokenizer=tokenizer,
-        return_full_text=False,
-        max_new_tokens=120,
-    )
-    return ChatHuggingFace(llm=HuggingFacePipeline(pipeline=pipe))
-
-
 def grounding_judge(inputs: dict, outputs: dict, reference_outputs: dict) -> dict:
     """
     Judge whether the summary is factually grounded in the source article.
@@ -84,7 +59,7 @@ def grounding_judge(inputs: dict, outputs: dict, reference_outputs: dict) -> dic
     if len(article_text.strip()) < 50 or "No content" in article_text:
         return {"key": "grounding_judge", "score": 0.5}
 
-    judge = _get_judge_llm()
+    judge = load_chat_llm(JUDGE_MODEL_ID, 120)
     response = judge.invoke([
         SystemMessage(content=JUDGE_SYSTEM_PROMPT),
         HumanMessage(content=f"SOURCE ARTICLE:\n{article_text}\n\nSUMMARY:\n{summary}"),
