@@ -24,7 +24,7 @@ system_prompt.yaml  →  evals.run_eval  →  LangSmith experiment
 | `correct_field_names` | no markdown bold field names (`**TITLE:**`) | 0 or 1 |
 | `no_repeated_summary` | no repeated sentences across article sections | 0 or 1 |
 
-**LLM-as-a-judge (`evals/judge.py`)** — `grounding_judge` uses `Qwen/Qwen3.5-2B` to check whether the summary contains only facts present in the source article. Returns `1.0` (grounded), `0.0` (hallucinated), `0.5` (unparseable response).
+**LLM-as-a-judge (`evals/judge.py`)** — `grounding_judge` uses `Qwen/Qwen3.5-4B` to check whether the summary contains only facts present in the source article. Returns `1.0` (grounded), `0.0` (hallucinated), `0.5` (unparseable response).
 
 **Iteration loop:**
 
@@ -53,7 +53,7 @@ Change `system_prompt.yaml` or `HF_MODEL_ID`, re-run, compare experiments in Lan
 
 **Prompt Engineering with Versioned Evaluation** — LLM behavior is defined in `system_prompt.yaml`, decoupled from code. Each prompt change is evaluated with the full evaluator suite and logged as a named experiment in LangSmith. Changes are comparable across time.
 
-**LLM-as-a-Judge** — A second, larger local model (`Qwen3.5-2B`) evaluates the output of the smaller model (`Qwen3.5-0.8B`) for factual grounding. No external API calls — the judge runs fully locally.
+**LLM-as-a-Judge** — A second, larger local model (`Qwen3.5-4B`) evaluates the output of the smaller model (`Qwen3.5-0.8B`) for factual grounding. No external API calls — the judge runs fully locally.
 
 **Scheduled Async Pipeline** — RSS fetching, LLM inference, and message delivery are fully async. The pipeline runs on a daily cron schedule via APScheduler with configurable trigger time.
 
@@ -93,7 +93,7 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 | Layer | Technology |
 |---|---|
 | LLM | HuggingFace Transformers — `Qwen/Qwen3.5-0.8B` (local, configurable via `HF_MODEL_ID`) |
-| LLM Judge | `Qwen/Qwen3.5-2B` (local, no external API) |
+| LLM Judge | `Qwen/Qwen3.5-4B` (local, no external API) |
 | Agent Framework | LangChain 1.x — `create_agent` |
 | Workflow Orchestration | LangGraph — StateGraph, conditional edges |
 | Embeddings | HuggingFace `all-MiniLM-L6-v2` |

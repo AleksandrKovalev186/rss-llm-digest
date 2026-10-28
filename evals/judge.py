@@ -1,7 +1,7 @@
 """
 LLM-as-a-judge evaluator for the RSS summarizer.
 
-Uses a separate, larger model (Qwen/Qwen3.5-2B by default) to assess
+Uses a separate, larger model (Qwen/Qwen3.5-4B by default) to assess
 whether the generated summary is grounded in the source article —
 i.e., does not contain facts absent from the input.
 
@@ -15,15 +15,15 @@ Judge prompt design:
   - Chain-of-thought reasoning line before the verdict so the model
     "thinks" before answering (improves accuracy on small models).
   - Explicit instruction to ignore format issues — we only judge facts.
+  - The answer is prefilled with "REASONING:": Qwen3.5-4B otherwise starts with
+    a free-form "Thinking Process:" and runs out of tokens before the verdict.
 """
 
 import re
 
-from langchain_core.messages import HumanMessage, SystemMessage
-
 from settings.llm import load_chat_llm
 
-JUDGE_MODEL_ID = "Qwen/Qwen3.5-2B"
+JUDGE_MODEL_ID = "Qwen/Qwen3.5-4B"
 
 JUDGE_SYSTEM_PROMPT = """You are a factual grounding evaluator.
 Your task: decide whether a news summary contains ONLY facts that are present in the source article.
@@ -59,16 +59,22 @@ def grounding_judge(inputs: dict, outputs: dict, reference_outputs: dict) -> dic
     if len(article_text.strip()) < 50 or "No content" in article_text:
         return {"key": "grounding_judge", "score": 0.5}
 
-    judge = load_chat_llm(JUDGE_MODEL_ID, 120)
-    response = judge.invoke([
-        SystemMessage(content=JUDGE_SYSTEM_PROMPT),
-        HumanMessage(content=f"SOURCE ARTICLE:\n{article_text}\n\nSUMMARY:\n{summary}"),
-    ])
+    judge = load_chat_llm(JUDGE_MODEL_ID, 512)
+    prompt = judge.tokenizer.apply_chat_template(
+        [
+            {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+            {"role": "user", "content": f"SOURCE ARTICLE:\n{article_text}\n\nSUMMARY:\n{summary}"},
+        ],
+        tokenize=False,
+        add_generation_prompt=True,
+    ) + "REASONING:"
+    response = judge.llm.invoke(prompt)
 
-    match = VERDICT_PATTERN.search(response.content)
+    match = VERDICT_PATTERN.search(response)
     if not match:
         # Could not parse — return neutral score so it doesn't skew the mean.
-        return {"key": "grounding_judge", "score": 0.5}
+        return {"key": "grounding_judge", "score": 0.5, "comment": response}
 
     verdict = match.group(1).upper()
-    return {"key": "grounding_judge", "score": 1.0 if verdict == "YES" else 0.0}
+    score = 1.0 if verdict == "YES" else 0.0
+    return {"key": "grounding_judge", "score": score, "comment": response}

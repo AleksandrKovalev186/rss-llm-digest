@@ -1,6 +1,7 @@
 import os
 from functools import lru_cache
 
+import torch
 from huggingface_hub import snapshot_download
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 from loguru import logger
@@ -27,7 +28,9 @@ def load_chat_llm(model_id: str, max_new_tokens: int) -> ChatHuggingFace:
 
     logger.info("Step 2/3 — loading tokenizer and weights into memory...")
     tokenizer = AutoTokenizer.from_pretrained(local_path, clean_up_tokenization_spaces=False)
-    model = AutoModelForCausalLM.from_pretrained(local_path, dtype="auto", device_map="auto")
+    # On Apple Silicon "auto" sizes by free RAM at load time and may offload layers to disk.
+    device_map = "mps" if torch.backends.mps.is_available() else "auto"
+    model = AutoModelForCausalLM.from_pretrained(local_path, dtype="auto", device_map=device_map)
     logger.info("Step 3/3 — building pipeline...")
     pipe = pipeline(
         "text-generation", model=model, tokenizer=tokenizer,
