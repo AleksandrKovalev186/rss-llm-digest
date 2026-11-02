@@ -1,59 +1,65 @@
 import asyncio
+import html
 import re
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.types import LinkPreviewOptions
-from langchain_core.messages import HumanMessage
 from loguru import logger
-
-from settings.llm import get_chat_llm
 
 from graph.state import State
 from settings.config import settings
 
-FORMATTER_PROMPT = """You are a Telegram message formatter.
-Convert the news summaries below to Telegram HTML.
-Output ONLY the formatted text — no code blocks, no explanations, no markdown.
-
-ALLOWED TAGS (only these, nothing else):
-<b>bold</b>  <i>italic</i>  <u>underline</u>  <s>strikethrough</s>
-<a href="URL">link</a>  <code>inline code</code>  <pre>block</pre>
-
-RULES:
-- Special characters must be escaped: & → &amp;  < → &lt;  > → &gt;
-- Do NOT use <div>, <p>, <br>, <h1>-<h6>, or any other tags not listed above
-- Do NOT wrap output in ```html, ```, or any code block markers
-- Separate news items with: ━━━━━━━━━━━━━━━━━━━━
-
-{summaries}"""
-
-_TELEGRAM_ALLOWED = frozenset({
-    'b', 'strong', 'i', 'em', 'u', 'ins', 's', 'strike', 'del',
-    'a', 'code', 'pre', 'blockquote',
-})
-_BLOCK_TAGS = frozenset({
-    'div', 'p', 'section', 'article', 'header', 'footer', 'li', 'ul', 'ol', 'br',
-})
+SEPARATOR = "━━━━━━━━━━━━━━━━━━━━"
+FIELD_PATTERN = re.compile(
+    r"^(TITLE|SUMMARY|WHY_IT_MATTERS|SOURCE|TARGET_AUDIENCE|RELATED):\s*(.*)$"
+)
+FIELD_LABELS = {
+    "SUMMARY": "Summary",
+    "WHY_IT_MATTERS": "Why it matters",
+    "TARGET_AUDIENCE": "Audience",
+    "RELATED": "Related",
+}
 
 
-def _sanitize_html(text: str) -> str:
-    """Strip HTML tags unsupported by Telegram; replace block elements with newlines."""
-    text = re.sub(r'^\s*```[\w]*\s*\n?', '', text)
-    text = re.sub(r'\n?\s*```\s*$', '', text)
+def _format_line(line: str) -> str:
+    match = FIELD_PATTERN.match(line.strip())
+    if not match:
+        return html.escape(line, quote=False)
 
-    def _replace(m: re.Match) -> str:
-        inner = m.group(1).lstrip('/').split()[0].lower()
-        if inner in _TELEGRAM_ALLOWED:
-            return m.group(0)
-        return '\n' if inner in _BLOCK_TAGS else ''
+    field, value = match.groups()
+    if field == "TITLE":
+        return f"<b>{html.escape(value, quote=False)}</b>"
+    if field == "SOURCE":
+        return f'<a href="{html.escape(value)}">Source</a>' if value else ""
+    label = f"<b>{FIELD_LABELS[field]}:</b>"
+    return f"{label} {html.escape(value, quote=False)}" if value else label
 
-    result = re.sub(r'<(/?[\w][^>]*)>', _replace, text)
-    return re.sub(r'\n{3,}', '\n\n', result).strip()
+
+def format_digest(text: str) -> str:
+    """Turn the plain-text digest into Telegram HTML; the LLM never writes tags itself."""
+    items = re.split(r"^\s*---\s*$", text.strip(), flags=re.MULTILINE)
+    formatted = [
+        "\n".join(_format_line(line) for line in item.strip().splitlines()) for item in items
+    ]
+    return f"\n{SEPARATOR}\n".join(item for item in formatted if item.strip())
 
 
-def _char_split(text: str, max_length: int) -> list[str]:
-    return [text[i:i + max_length] for i in range(0, len(text), max_length)]
+def _line_split(text: str, max_length: int) -> list[str]:
+    """Split on line boundaries: format_digest never lets an HTML tag span lines.
+
+    shortcut: a single line longer than max_length is still sent whole and Telegram rejects it;
+    summary lines are far below 4096 chars, so this is not handled.
+    """
+    chunks, current = [], ""
+    for line in text.splitlines(keepends=True):
+        if current and len(current) + len(line) > max_length:
+            chunks.append(current.strip())
+            current = ""
+        current += line
+    if current.strip():
+        chunks.append(current.strip())
+    return chunks
 
 
 def split_messages(text: str, max_length: int = 4096) -> list[str]:
@@ -62,43 +68,31 @@ def split_messages(text: str, max_length: int = 4096) -> list[str]:
         return [text]
 
     chunks = []
-    separator = "━━━━━━━━━━━━━━━━━━━━"
-    parts = text.split(separator)
+    parts = text.split(SEPARATOR)
     current_chunk = ""
 
     for part in parts:
-        candidate = current_chunk + (separator if current_chunk else "") + part
+        candidate = current_chunk + (SEPARATOR if current_chunk else "") + part
         if len(candidate) <= max_length:
             current_chunk = candidate
         else:
             if current_chunk:
                 chunks.append(current_chunk.strip())
             if len(part) > max_length:
-                char_parts = _char_split(part.strip(), max_length)
-                chunks.extend(char_parts[:-1])
-                current_chunk = char_parts[-1]
+                line_parts = _line_split(part.strip(), max_length)
+                chunks.extend(line_parts[:-1])
+                current_chunk = line_parts[-1]
             else:
                 current_chunk = part
 
     if current_chunk.strip():
         chunks.append(current_chunk.strip())
 
-    return chunks or _char_split(text, max_length)
+    return chunks or _line_split(text, max_length)
 
 
 async def telegram_node(state: State) -> State:
-    llm = get_chat_llm()
-    loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(
-        None,
-        lambda: llm.invoke([
-            HumanMessage(content=FORMATTER_PROMPT.format(
-                summaries=state.summaries
-            ))
-        ])
-    )
-
-    chunks = split_messages(_sanitize_html(response.content))
+    chunks = split_messages(format_digest(state.summaries))
 
     async with Bot(token=settings.telegram_bot_token) as bot:
         try:

@@ -107,6 +107,7 @@ Icon
 *.pth
 *.weights
 *.local.md
+todo.md
 
 # Temporary files
 tmp/

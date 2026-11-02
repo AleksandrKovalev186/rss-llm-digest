@@ -1,4 +1,4 @@
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, UTC
 
 import chromadb
 from langchain_chroma import Chroma
@@ -46,15 +46,14 @@ def store_news(entries: list[dict[str, str]]) -> None:
     _rss_store.add_texts(texts=texts, ids=ids, metadatas=metadata)
 
 
-def retrieve_news(query: str, k: int = 3) -> str:
-    threshold = (datetime.now() - timedelta(minutes=20)).timestamp()
+def retrieve_news(query: str, k: int = 3, exclude_links: set[str] | None = None) -> str:
     if _rss_store is None:
         raise RuntimeError("Rss store is not initialized.")
 
     docs = _rss_store.similarity_search(
         query,
         k=k,
-        filter={"fetched_at": {"$lt": threshold}}  # type: ignore[arg-type]
+        filter={"link": {"$nin": sorted(exclude_links)}} if exclude_links else None,
     )
     return "\n\n---\n\n".join(
         f"Title: {doc.metadata['title']}\nLink: {doc.metadata['link']}\n{doc.page_content}"

@@ -53,7 +53,7 @@ Change `system_prompt.yaml` or `HF_MODEL_ID`, re-run, compare experiments in Lan
 
 **Prompt Engineering with Versioned Evaluation** — LLM behavior is defined in `system_prompt.yaml`, decoupled from code. Each prompt change is evaluated with the full evaluator suite and logged as a named experiment in LangSmith. Changes are comparable across time.
 
-**LLM-as-a-Judge** — A second, larger local model (`Qwen3.5-4B`) evaluates the output of the smaller model (`Qwen3.5-0.8B`) for factual grounding. No external API calls — the judge runs fully locally.
+**LLM-as-a-Judge** — A second, larger local model (`Qwen3.5-4B`) evaluates the output of the smaller model (`Qwen3.5-2B`) for factual grounding. No external API calls — the judge runs fully locally.
 
 **Scheduled Async Pipeline** — RSS fetching, LLM inference, and message delivery are fully async. The pipeline runs on a daily cron schedule via APScheduler with configurable trigger time.
 
@@ -72,7 +72,7 @@ summarizer_node   ← ReAct Agent + rss_feed tool + search_rss_history tool + Hu
   ▼
 integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
   │
-  ├── telegram_node  ← LLM reformat + aiogram delivery
+  ├── telegram_node  ← HTML formatting in code + aiogram delivery
   │
   └── email_node     ← MIME message + Gmail SMTP SSL
 ```
@@ -82,7 +82,7 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 - **Entry point** (`main.py`) — APScheduler cron job that runs the graph once a day.
 - **Graph** (`graph/builder.py`) — LangGraph `StateGraph` with the summarizer node and the channel router.
 - **Summarizer node** (`graph/builder.py`) — LangChain `create_agent` with the tools from `tools/rss.py`. The HF pipeline is sync-only, so the agent runs via `asyncio.to_thread`.
-- **Vector store** (`memory/vector_store.py`) — ChromaDB over HTTP. `fetched_at` stored as Unix timestamp for Chroma's `$lt` numeric filter. `retrieve_news()` excludes entries from the last 20 minutes to prevent self-retrieval.
+- **Vector store** (`memory/vector_store.py`) — ChromaDB over HTTP. `retrieve_news()` excludes articles fetched in the current run by link, so search returns only real history. `search_rss_history` is capped at 3 calls per run to stop the small model from looping.
 - **LLM helper** (`settings/llm.py`) — `load_chat_llm(model_id, max_new_tokens)`: snapshot download → `AutoModelForCausalLM` with `device_map="auto"` → `HuggingFacePipeline` + `ChatHuggingFace`. `@lru_cache` per model, so the summarizer (`get_chat_llm()`) and the judge each load once.
 - **State** (`graph/state.py`) — Pydantic model: `messages` (LangChain message list) + `summaries` (aggregated text string).
 
@@ -92,7 +92,7 @@ integration_router  ← Conditional edge: routes by CHANNEL_TO_SEND
 
 | Layer | Technology |
 |---|---|
-| LLM | HuggingFace Transformers — `Qwen/Qwen3.5-0.8B` (local, configurable via `HF_MODEL_ID`) |
+| LLM | HuggingFace Transformers — `Qwen/Qwen3.5-2B` (local, configurable via `HF_MODEL_ID`; 0.8B is too small to call tools) |
 | LLM Judge | `Qwen/Qwen3.5-4B` (local, no external API) |
 | Agent Framework | LangChain 1.x — `create_agent` |
 | Workflow Orchestration | LangGraph — StateGraph, conditional edges |
@@ -158,5 +158,5 @@ EMAIL_PASSWORD=...             # Gmail app password
 
 # Optional
 LANGSMITH_API_KEY=...          # LangSmith tracing and evals
-HF_MODEL_ID=Qwen/Qwen3.5-0.8B  # override model (~1.6 GB on first run)
+HF_MODEL_ID=Qwen/Qwen3.5-2B  # override model (~4.2 GB on first run)
 ```

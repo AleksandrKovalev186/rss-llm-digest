@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-    hf_model_id: str = Field(default="Qwen/Qwen3.5-0.8B")
+    hf_model_id: str = Field(default="Qwen/Qwen3.5-2B")
     hf_token: Optional[str] = Field(default=None, description="HuggingFace token for gated models")
 
     channel_to_send: Literal["TELEGRAM", "EMAIL"] = Field(

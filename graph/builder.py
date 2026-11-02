@@ -2,6 +2,8 @@ import asyncio
 from typing import Literal
 
 from langchain.agents import create_agent
+from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
+from langchain_core.messages import AIMessage
 from langgraph.constants import START, END
 from langgraph.graph import StateGraph
 
@@ -11,7 +13,7 @@ from integrations.telegram_notifier import telegram_node
 from settings.config import settings
 from settings.llm import get_chat_llm
 from settings.prompts import load_system_prompt
-from tools.rss import read_urls, rss_feed, search_rss_history
+from tools.rss import MAX_SEARCH_CALLS, read_urls, reset_run_state, rss_feed, search_rss_history
 
 
 def integration_router(state: State) -> Literal['telegram_node', 'email_node']:
@@ -24,13 +26,26 @@ def integration_router(state: State) -> Literal['telegram_node', 'email_node']:
     )
 
 
+@wrap_model_call
+def stop_tools_when_done(request: ModelRequest, handler) -> ModelResponse:
+    """Remove the tools once the feeds are fetched and the search budget is spent."""
+    calls = [
+        tc["name"] for m in request.messages if isinstance(m, AIMessage) for tc in m.tool_calls
+    ]
+    if "rss_feed" in calls and calls.count("search_rss_history") >= MAX_SEARCH_CALLS:
+        request = request.override(tools=[])
+    return handler(request)
+
+
 async def summarizer_node(state: State) -> State:
     agent = create_agent(
         model=get_chat_llm(),
         tools=[rss_feed, search_rss_history],
         system_prompt=load_system_prompt(),
+        middleware=[stop_tools_when_done],
     )
     urls = read_urls('urls.csv')
+    reset_run_state()
 
     # ChatHuggingFace has no async support for HuggingFacePipeline, so run sync invoke in a thread.
     result = await asyncio.to_thread(agent.invoke, {
